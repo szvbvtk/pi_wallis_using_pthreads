@@ -2,11 +2,12 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <time.h>
 
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-double suma = 1.0;
+long double suma = 1.0;
 
 struct arg{
     int liczba_wyrazow;
@@ -25,7 +26,7 @@ void *thread(void *dane){
     fprintf(stdout, "Thread #%lu size=%d first=%d\n", tid, liczba_wyrazow, indeks_wyrazu); 
 
     for(int i = indeks_wyrazu; i < indeks_wyrazu + liczba_wyrazow; i++){
-        // suma_tmp *= (4.0 * i * i) / ((2 * i - 1.0) * (2 * i + 1.0)); to jest chyba dokładniejsze (nw) ale w tym odkomentowanym są wyniki dokładnie jak w wyniku z polecenia
+        //suma_tmp *= (4.0 * i * i) / ((2 * i - 1.0) * (2 * i + 1.0));
         suma_tmp *= (2.0*i / (2*i - 1.0)) * (2.0*i /(2*i + 1.0));
     }
 
@@ -77,9 +78,13 @@ int main(int argc, char **argv){
     argumenty[w - 1].liczba_wyrazow += reszta;
 
 
+	struct timespec start, end;
+
+
     // pthread_t watki[w];
     pthread_t* watki = (pthread_t*)malloc(w*sizeof(pthread_t));
 
+    clock_gettime(CLOCK_REALTIME, &start);
     for(int i = 0; i < w; i++){
         pthread_create(watki + i, NULL, thread, (void *)&argumenty[i]);
     }
@@ -87,28 +92,34 @@ int main(int argc, char **argv){
     for(int i = 0; i < w; i++){
         pthread_join(watki[i], NULL);
     }
+        clock_gettime(CLOCK_REALTIME, &end);
 
-    // jesli odkomentuje to co zakomentowane to to zakomentowac
+
 	free(watki);	
 	free(argumenty);	
 
     suma *= 2;
-    fprintf(stdout, "w/Threads:  PI=%.20lf\n", suma); 
+	time_t sekundy = end.tv_sec - start.tv_sec;
+	long nanosekundy = end.tv_nsec - start.tv_nsec;
+	double czas = sekundy + nanosekundy / (double)1000000000;
+    fprintf(stdout, "w/Threads:  PI=%.20Lf time=%lf\n", suma, czas); 
 
-    // long double suma2 = 1.0;
-    // for(int i = 1; i <= n; i++){
-    //     suma2 *= (4.0 * i * i) / ((2 * i - 1.0) * (2 * i + 1.0));
-    // }
-    // suma2 *= 2;
-    // fprintf(stdout, "wo/Threads: PI=%.20Lf\n", suma2); 
+    // bez wątków
+    long double sumab = 1.0;
+    clock_gettime(CLOCK_REALTIME, &start);
+    for(int i = 1; i <= n; i++){
+        sumab *= (2.0*i / (2*i - 1.0)) * (2.0*i /(2*i + 1.0));
+    }
+    clock_gettime(CLOCK_REALTIME, &end);
 
-    // long double pi = 1.0;
-    // for (int i = 1; i <= 333333334; i++)
-    // {
-    //     long double num = 4.0 * i * i;
-    //     pi *= num / (num - 1);
-    // }
-    // pi *= 2;
+	sekundy = end.tv_sec - start.tv_sec;
+	nanosekundy = end.tv_nsec - start.tv_nsec;
+	czas = sekundy + nanosekundy / (double)1000000000;
+
+    sumab *= 2;
+    fprintf(stdout, "wo/Threads: PI=%.20Lf time=%lf\n", sumab, czas); 
+
+
     // fprintf(stdout, "wo/Threads: PI=%.30Lf\n", pi); 
 
     return 0;
